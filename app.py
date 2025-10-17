@@ -13,27 +13,29 @@ import time
 app = Flask(__name__)
 CORS(app)
 
-def scrape_once_caldas():
-    """Función de scraping simplificada"""
+def get_chrome_driver():
+    """Configurar ChromeDriver para local y Vercel"""
     chrome_options = Options()
-    chrome_options.add_argument('--headless')
+    chrome_options.add_argument('--headless=new')
     chrome_options.add_argument('--disable-gpu')
     chrome_options.add_argument('--no-sandbox')
     chrome_options.add_argument('--disable-dev-shm-usage')
+    chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+    chrome_options.add_argument('--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36')
     
-    # Obtener la ruta correcta del chromedriver
-    driver_path = ChromeDriverManager().install()
+    # Intentar local primero
+    chromedriver_path = '/Users/macuser/.wdm/drivers/chromedriver/mac64/141.0.7390.78/chromedriver-mac-x64/chromedriver'
     
-    # Si la ruta apunta al archivo incorrecto, corregirla
-    if 'THIRD_PARTY_NOTICES' in driver_path or not driver_path.endswith('chromedriver'):
-        import os
-        # Buscar el archivo chromedriver correcto en el directorio
-        driver_dir = os.path.dirname(driver_path)
-        if 'chromedriver-mac-x64' in driver_dir:
-            driver_path = os.path.join(driver_dir, 'chromedriver')
-    
-    service = Service(driver_path)
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    if os.path.exists(chromedriver_path):
+        service = Service(chromedriver_path)
+        return webdriver.Chrome(service=service, options=chrome_options)
+    else:
+        # Para Vercel o sistema
+        return webdriver.Chrome(options=chrome_options)
+
+def scrape_once_caldas():
+    """Función de scraping completa"""
+    driver = get_chrome_driver()
     
     data = {"goleadores": [], "asistencias": [], "resultados": []}
     
