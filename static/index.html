@@ -544,20 +544,39 @@
 
         async function exportCSV() {
             const exportBtn = document.getElementById('exportBtn');
+            if (exportBtn.classList.contains('loading')) {
+                return;
+            }
+
             exportBtn.classList.add('loading');
             exportBtn.textContent = '⏳ Exportando...';
-            
+
             try {
                 const response = await fetch('/api/export/csv');
-                const result = await response.json();
-                
-                if (result.success) {
-                    alert('✅ Archivos CSV generados exitosamente!\n\nGoleadores, Asistencias y Resultados exportados.');
-                } else {
-                    alert('❌ Error al exportar: ' + result.error);
+
+                if (!response.ok) {
+                    throw new Error(`El servidor respondió con ${response.status}`);
                 }
+
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const timestamp = new Date()
+                    .toISOString()
+                    .replace(/[-:T]/g, '')
+                    .split('.')[0];
+                const filename = `once_caldas_${timestamp}.zip`;
+
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(downloadUrl);
+
+                alert('✅ Exportación completada. Se descargó un archivo ZIP con los CSV.');
             } catch (e) {
-                alert('❌ Error: ' + e.message);
+                alert('❌ Error al exportar: ' + e.message);
             } finally {
                 exportBtn.classList.remove('loading');
                 exportBtn.textContent = '💾 Exportar CSV';

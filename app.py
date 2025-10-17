@@ -1,9 +1,18 @@
 from __future__ import annotations
 
-from flask import Flask, jsonify, send_from_directory
+import csv
+import io
+import os
+import re
+import zipfile
+from datetime import datetime
+from typing import Iterable
+
+from flask import Flask, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 import requests
 from bs4 import BeautifulSoup
+import unicodedata
 
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 CORS(app)
@@ -70,6 +79,53 @@ def table_to_dict(table: BeautifulSoup, fallback_title: str | None = None) -> di
             rows.append(cells)
 
     return {"title": title, "headers": headers, "rows": rows}
+
+
+def _slugify(value: str, default: str) -> str:
+    """Generate a safe filename fragment from a heading or table title."""
+
+    normalised = (
+        unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
+    )
+    slug = re.sub(r"[^a-zA-Z0-9]+", "-", normalised).strip("-").lower()
+    return slug or default
+
+
+def _table_to_csv(table: dict) -> str:
+    """Convert a scraped table dictionary into CSV text."""
+
+    headers: list[str] = table.get("headers") or []
+    rows: list[list[str]] = table.get("rows") or []
+
+    column_count = max(
+        [len(headers)] + [len(row) for row in rows]
+    ) if (headers or rows) else 0
+
+    writer_stream = io.StringIO()
+    writer = csv.writer(writer_stream)
+
+    if column_count:
+        computed_headers = [
+            headers[idx] if idx < len(headers) and headers[idx] else f"Columna {idx + 1}"
+            for idx in range(column_count)
+        ]
+        writer.writerow(computed_headers)
+
+        for row in rows:
+            padded_row = [row[idx] if idx < len(row) else "" for idx in range(column_count)]
+            writer.writerow(padded_row)
+
+    return writer_stream.getvalue()
+
+
+def _write_tables_to_zip(zip_file: zipfile.ZipFile, tables: Iterable[dict], folder: str) -> None:
+    for index, table in enumerate(tables, start=1):
+        title = table.get("title") or f"tabla-{index}"
+        slug = _slugify(title, f"tabla-{index}")
+        csv_content = _table_to_csv(table)
+
+        filename = f"{folder}/{slug}.csv"
+        zip_file.writestr(filename, csv_content or "")
 
 
 def extract_tables_from_page(url: str, selectors: list[str]) -> list[dict]:
@@ -151,7 +207,36 @@ def api_scrape():
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
+@app.route("/api/export/csv", methods=["GET"])
+def export_csv():
+    try:
+        data = scrape_once_caldas()
+        buffer = io.BytesIO()
+
+        with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as zip_file:
+            _write_tables_to_zip(zip_file, data.get("estadisticas", []), "estadisticas")
+            _write_tables_to_zip(zip_file, data.get("resultados", []), "resultados")
+
+        buffer.seek(0)
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        filename = f"once_caldas_{timestamp}.zip"
+
+        return send_file(
+            buffer,
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name=filename,
+        )
+    except Exception as exc:  # pragma: no cover - defensive path
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
 if __name__ == "__main__":
-    print("🚀 Servidor iniciado en http://localhost:5000")
-    print("📊 API disponible en http://localhost:5000/api/scrape")
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    host = os.environ.get("HOST", "0.0.0.0")
+    debug_env = os.environ.get("FLASK_DEBUG", "false").lower()
+    debug_mode = debug_env in {"1", "true", "t", "yes", "y"}
+    base_url = f"http://{host}:{port}"
+    print(f"🚀 Servidor iniciado en {base_url}")
+    print(f"📊 API disponible en {base_url}/api/scrape")
+    app.run(debug=debug_mode, host=host, port=port)
