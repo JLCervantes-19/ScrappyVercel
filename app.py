@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
+import os
 import re
 import zipfile
 from datetime import datetime
@@ -231,6 +232,9 @@ def export_csv():
 
 
 if __name__ == "__main__":
-    print("🚀 Servidor iniciado en http://localhost:5000")
-    print("📊 API disponible en http://localhost:5000/api/scrape")
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    host = os.environ.get("HOST", "0.0.0.0")
+    base_url = f"http://{host}:{port}"
+    print(f"🚀 Servidor iniciado en {base_url}")
+    print(f"📊 API disponible en {base_url}/api/scrape")
+    app.run(debug=True, host=host, port=port)
