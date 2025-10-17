@@ -234,7 +234,9 @@ def export_csv():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     host = os.environ.get("HOST", "0.0.0.0")
+    debug_env = os.environ.get("FLASK_DEBUG", "false").lower()
+    debug_mode = debug_env in {"1", "true", "t", "yes", "y"}
     base_url = f"http://{host}:{port}"
     print(f"🚀 Servidor iniciado en {base_url}")
     print(f"📊 API disponible en {base_url}/api/scrape")
-    app.run(debug=True, host=host, port=port)
+    app.run(debug=debug_mode, host=host, port=port)
