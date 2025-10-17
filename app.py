@@ -13,23 +13,27 @@ app = Flask(__name__, static_folder='static', template_folder='static')
 CORS(app)
 
 def get_chrome_driver():
-    """Configurar ChromeDriver para local y Vercel"""
+    """Configurar ChromeDriver para local y Render"""
     chrome_options = Options()
-    chrome_options.add_argument('--headless')
+    chrome_options.add_argument('--headless=new')
     chrome_options.add_argument('--disable-gpu')
     chrome_options.add_argument('--no-sandbox')
     chrome_options.add_argument('--disable-dev-shm-usage')
     chrome_options.add_argument('--disable-blink-features=AutomationControlled')
-    chrome_options.add_argument('--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36')
+    chrome_options.add_argument('--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+    chrome_options.add_argument('--disable-extensions')
+    chrome_options.add_argument('--disable-software-rasterizer')
+    chrome_options.add_argument('--window-size=1920,1080')
     
-    # Intentar local primero
+    # Ruta local para desarrollo
     chromedriver_path = '/Users/macuser/.wdm/drivers/chromedriver/mac64/141.0.7390.78/chromedriver-mac-x64/chromedriver'
     
     if os.path.exists(chromedriver_path):
         service = Service(chromedriver_path)
         return webdriver.Chrome(service=service, options=chrome_options)
     else:
-        # Para Vercel o sistema
+        # Para Render: Chrome se instala en /usr/bin/google-chrome
+        chrome_options.binary_location = '/usr/bin/google-chrome'
         return webdriver.Chrome(options=chrome_options)
 
 def scrape_once_caldas():
