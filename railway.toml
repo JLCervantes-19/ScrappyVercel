@@ -1,0 +1,13 @@
+[build]
+# Usa el builder de Nixpacks de Railway para detectar un proyecto Python.
+builder = "NIXPACKS"
+buildCommand = "python -m pip install --upgrade pip && pip install -r requirements.txt"
+
+[deploy]
+# Ejecuta Gunicorn apuntando al entrypoint principal y reutiliza el puerto provisto por Railway.
+startCommand = "gunicorn --bind 0.0.0.0:${PORT:-8080} main:app --workers 1 --timeout 120"
+numReplicas = 1
+
+[env]
+# Alinea la versión de Python con la utilizada en desarrollo.
+PYTHON_VERSION = "3.11"
