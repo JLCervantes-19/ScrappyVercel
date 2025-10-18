@@ -236,7 +236,8 @@ if __name__ == "__main__":
     host = os.environ.get("HOST", "0.0.0.0")
     debug_env = os.environ.get("FLASK_DEBUG", "false").lower()
     debug_mode = debug_env in {"1", "true", "t", "yes", "y"}
-    base_url = f"http://{host}:{port}"
+    public_host = host if host not in {"0.0.0.0", "::"} else "localhost"
+    base_url = f"http://{public_host}:{port}"
     print(f"🚀 Servidor iniciado en {base_url}")
     print(f"📊 API disponible en {base_url}/api/scrape")
     app.run(debug=debug_mode, host=host, port=port)
